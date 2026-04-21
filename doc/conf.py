@@ -187,6 +187,10 @@ texinfo_documents = [
 
 # -- Options for autodoc --------------------------------------------------
 
+# apidoc generates overlapping module stubs; Sphinx 8+ can warn on duplicate
+# descriptions (e.g. labgrid.step) which fails the build with -W.
+suppress_warnings = ["autodoc"]
+
 autodoc_member_order = 'bysource'
 # TODO: __annotate_func__ can be dropped once
 # https://github.com/sphinx-doc/sphinx/commit/78148440556d3e5962771c1025c85b253ccd73c8

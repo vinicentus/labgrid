@@ -541,8 +541,9 @@ environment config:
 
   import pytest
 
-  plugins = ['labgrid.pytestplugin']
-  pytest.main(['--lg-env', 'shell-example.yaml', 'test_shell.py'], plugins)
+  # Rely on the labgrid pytest11 entry point; do not pass plugins= explicitly or
+  # pytest >= 8 registers the plugin twice (setuptools + explicit list).
+  pytest.main(['--lg-env', 'shell-example.yaml', 'test_shell.py'])
 
 .. testoutput:: pytest-example
   :hide:
@@ -570,7 +571,7 @@ As pytest always executes the ``conftest.py`` file in the test suite directory,
 we can define additional fixtures there:
 
 .. code-block:: python
-  :name: conftest_fixture.py
+  :name: conftest.py
 
   import pytest
 
@@ -592,8 +593,7 @@ With this fixture, we can simplify the ``test_example.py`` file to:
 
   import pytest
 
-  plugins = ['labgrid.pytestplugin', 'conftest_fixture']
-  pytest.main(['--lg-env', 'shell-example.yaml', 'test_custom_fixture.py'], plugins)
+  pytest.main(['--lg-env', 'shell-example.yaml', 'test_custom_fixture.py'])
 
 .. testoutput:: pytest-example
   :hide:

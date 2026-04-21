@@ -1,8 +1,12 @@
+from __future__ import annotations
+
+# ruff: noqa: SIM108, SIM115, UP012, SIM102
 import os
 import sys
 from datetime import datetime
+from typing import IO, Any
 
-from .step import steps
+from .step import StepEvent, steps
 
 
 class ConsoleLoggingReporter:
@@ -12,30 +16,33 @@ class ConsoleLoggingReporter:
         logpath (str): path to store the logfiles in
     """
 
-    instance = None
+    instance: ConsoleLoggingReporter | None = None
 
     @classmethod
-    def start(cls, path):
+    def start(cls, path: str) -> None:
         """starts the ConsoleLoggingReporter"""
         assert cls.instance is None
         cls.instance = cls(path)
 
     @classmethod
-    def stop(cls):
+    def stop(cls) -> None:
         """stops the ConsoleLoggingReporter"""
         assert cls.instance is not None
         cls.instance._stop()
         steps.unsubscribe(cls.instance.notify)
         cls.instance = None
 
-    def __init__(self, logpath):
+    _logcache: dict[Any, IO[bytes] | None]
+    logpath: str
+
+    def __init__(self, logpath: str) -> None:
         self._logcache = {}
         self.logpath = logpath
         if not os.path.exists(self.logpath):
             os.makedirs(self.logpath)
         steps.subscribe(self.notify)
 
-    def _stop(self):
+    def _stop(self) -> None:
         while self._logcache:
             _, log = self._logcache.popitem()
             # ignore cache entries for errors
@@ -43,7 +50,7 @@ class ConsoleLoggingReporter:
                 continue
             log.close()
 
-    def get_logfile(self, event):
+    def get_logfile(self, event: StepEvent) -> IO[bytes] | None:
         """Returns the correct file handle from cache or creates a new file handle"""
         source = event.step.source
         try:
@@ -71,7 +78,7 @@ class ConsoleLoggingReporter:
 
         return log
 
-    def notify(self, event):
+    def notify(self, event: StepEvent) -> None:
         """This is the callback function for steps"""
         step = event.step
         if step.tag == "console":

@@ -1,0 +1,6 @@
+from ..exception import ExecutionError as ExecutionError
+
+PORT: int
+
+def power_set(host, port, index, value) -> None: ...
+def power_get(host, port, index): ...

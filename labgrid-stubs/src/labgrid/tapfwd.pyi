@@ -1,0 +1,39 @@
+from abc import ABC, abstractmethod
+
+from _typeshed import Incomplete
+
+HEADER: Incomplete
+
+class Pipe(ABC):
+    frame: bytes
+    buffer: bytes
+    read_event: Incomplete
+    write_event: Incomplete
+    eof: bool
+    loop: Incomplete
+    in_fd: Incomplete
+    out_fd: Incomplete
+    eof_handler: Incomplete
+    def __init__(self, in_fd, out_fd) -> None: ...
+    def set_eof(self) -> None: ...
+    async def stream(self) -> None: ...
+    @abstractmethod
+    def read_in(self): ...
+    @abstractmethod
+    def write_out(self): ...
+
+class StreamToTapPipe(Pipe):
+    def read_until(self, length) -> None: ...
+    frame: Incomplete
+    buffer: bytes
+    def read_in(self) -> None: ...
+    def write_out(self) -> None: ...
+
+class TapToStreamPipe(Pipe):
+    frame: Incomplete
+    def read_in(self) -> None: ...
+    buffer: Incomplete
+    def write_out(self) -> None: ...
+
+async def pipe_loop(tap_fd, out_fd, in_fd): ...
+def main() -> None: ...

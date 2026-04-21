@@ -1,0 +1,9 @@
+from _typeshed import Incomplete
+
+class Timeout:
+    timeout: Incomplete
+    def __attrs_post_init__(self) -> None: ...
+    @property
+    def remaining(self): ...
+    @property
+    def expired(self): ...

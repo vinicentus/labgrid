@@ -1,23 +1,27 @@
+from __future__ import annotations
+
+from typing import Any
+
 import attr
 
 
 @attr.s(eq=False)
 class NoConfigFoundError(Exception):
-    msg = attr.ib(validator=attr.validators.instance_of(str))
+    msg: str = attr.ib(validator=attr.validators.instance_of(str))
 
 
 @attr.s(eq=False)
 class NoSupplierFoundError(Exception):
-    msg = attr.ib(validator=attr.validators.instance_of(str))
-    filter = attr.ib(
+    msg: str = attr.ib(validator=attr.validators.instance_of(str))
+    filter: set[Any] | None = attr.ib(
         default=None,
-        validator=attr.validators.optional(attr.validators.instance_of(set))
+        validator=attr.validators.optional(attr.validators.instance_of(set)),
     )
 
 
 @attr.s(eq=False)
 class InvalidConfigError(Exception):
-    msg = attr.ib(validator=attr.validators.instance_of(str))
+    msg: str = attr.ib(validator=attr.validators.instance_of(str))
 
 
 @attr.s(eq=False)
@@ -27,9 +31,9 @@ class NoDriverFoundError(NoSupplierFoundError):
 
 @attr.s(eq=False)
 class NoResourceFoundError(NoSupplierFoundError):
-    found = attr.ib(
+    found: list[Any] | None = attr.ib(
         default=None,
-        validator=attr.validators.optional(attr.validators.instance_of(list))
+        validator=attr.validators.optional(attr.validators.instance_of(list)),
     )
 
 
@@ -40,4 +44,4 @@ class NoStrategyFoundError(NoSupplierFoundError):
 
 @attr.s(eq=False)
 class RegistrationError(Exception):
-    msg = attr.ib(validator=attr.validators.instance_of(str))
+    msg: str = attr.ib(validator=attr.validators.instance_of(str))

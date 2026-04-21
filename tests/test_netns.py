@@ -1,6 +1,7 @@
 import contextlib
 import errno
 import os
+import shutil
 import socket
 import subprocess
 import time
@@ -11,12 +12,24 @@ from labgrid.util.agentwrapper import AgentWrapper
 from labgrid.util.netns import NetNamespace
 
 
-def netns_allowed():
-    result = subprocess.run(["unshare", "-Umn", "true"])
+def netns_allowed() -> bool:
+    result = subprocess.run(["unshare", "-Umn", "true"], check=False)
     return result.returncode == 0
 
 
-pytestmark = pytest.mark.skipif(not netns_allowed(), reason="missing user+mount+network namespace privileges")
+def _netns_skip_reason() -> str | None:
+    if not netns_allowed():
+        return "missing user+mount+network namespace privileges"
+    if shutil.which("ip") is None:
+        return "iproute2 (ip) not available"
+    return None
+
+
+_NETNS_SKIP = _netns_skip_reason()
+pytestmark = pytest.mark.skipif(
+    _NETNS_SKIP is not None,
+    reason=_NETNS_SKIP or "skipped",
+)
 
 
 FAMILY_PARAMS = (

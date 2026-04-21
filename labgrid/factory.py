@@ -1,16 +1,28 @@
+from __future__ import annotations
+
 import inspect
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from .exceptions import InvalidConfigError, RegistrationError
 from .util.dict import filter_dict
 
+if TYPE_CHECKING:
+    from .target import Target
+
+_T = TypeVar("_T")
+
 
 class TargetFactory:
-    def __init__(self):
+    resources: dict[str, type[Any]]
+    drivers: dict[str, type[Any]]
+    all_classes: dict[str, type[Any]]
+
+    def __init__(self) -> None:
         self.resources = {}
         self.drivers = {}
         self.all_classes = {}
 
-    def reg_resource(self, cls):
+    def reg_resource(self, cls: type[_T]) -> type[_T]:
         """Register a resource with the factory.
 
         Returns the class to allow using it as a decorator."""
@@ -21,7 +33,7 @@ class TargetFactory:
         self._insert_into_all(cls)
         return cls
 
-    def reg_driver(self, cls):
+    def reg_driver(self, cls: type[_T]) -> type[_T]:
         """Register a driver with the factory.
 
         Returns the class to allow using it as a decorator."""
@@ -33,7 +45,7 @@ class TargetFactory:
         return cls
 
     @staticmethod
-    def _convert_to_named_list(data):
+    def _convert_to_named_list(data: list[dict[str, Any]] | dict[str, Any]) -> list[dict[str, Any]]:
         """Convert a tree of resources or drivers to a named list.
 
         When using named resources or drivers, the config file uses a list of
@@ -98,7 +110,7 @@ class TargetFactory:
         return result
 
     @staticmethod
-    def normalize_config(config):
+    def normalize_config(config: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
         resources = {}
         drivers = {}
         for item in TargetFactory._convert_to_named_list(config.get('resources', {})):
@@ -114,9 +126,15 @@ class TargetFactory:
             drivers.setdefault(driver, {})[name] = (args, bindings)
         return resources, drivers
 
-    def make_resource(self, target, resource, name, args):
+    def make_resource(
+        self,
+        target: Target,
+        resource: str,
+        name: str | None,
+        args: dict[str, Any],
+    ) -> Any:
         assert isinstance(args, dict)
-        if not resource in self.resources:
+        if resource not in self.resources:
             raise InvalidConfigError(f"unknown resource class {resource}")
         try:
             cls = self.resources[resource]
@@ -128,9 +146,15 @@ class TargetFactory:
             ) from e
         return r
 
-    def make_driver(self, target, driver, name, args):
+    def make_driver(
+        self,
+        target: Target,
+        driver: str,
+        name: str | None,
+        args: dict[str, Any],
+    ) -> Any:
         assert isinstance(args, dict)
-        if not driver in self.drivers:
+        if driver not in self.drivers:
             raise InvalidConfigError(f"unknown driver class {driver}")
         try:
             cls = self.drivers[driver]
@@ -141,7 +165,13 @@ class TargetFactory:
                 f"failed to create {driver} for target '{target}' using {args} ") from e
         return d
 
-    def make_target(self, name, config, *, env=None):
+    def make_target(
+        self,
+        name: str,
+        config: dict[str, Any],
+        *,
+        env: Any | None = None,
+    ) -> Target:
         from .target import Target
 
         target = Target(name, env=env)
@@ -159,13 +189,15 @@ class TargetFactory:
             self.make_driver(target, driver, name, args)
         return target
 
-    def class_from_string(self, string: str):
+    def class_from_string(self, string: str) -> type[Any]:
         try:
             return self.all_classes[string]
-        except KeyError:
-            raise KeyError(f"No driver/resource/protocol of type '{string}' in factory, perhaps not registered?")
+        except KeyError as exc:
+            raise KeyError(
+                f"No driver/resource/protocol of type '{string}' in factory, perhaps not registered?"
+            ) from exc
 
-    def _insert_into_all(self, cls):
+    def _insert_into_all(self, cls: type[Any]) -> None:
         classes = inspect.getmro(cls)
         for cl in classes:
             if not self.all_classes.get(cl.__name__):
@@ -176,4 +208,4 @@ class TargetFactory:
 #:
 #: This instance is used to register Resource and Driver classes so that
 #: Targets can be created automatically from YAML files.
-target_factory = TargetFactory()
+target_factory: TargetFactory = TargetFactory()

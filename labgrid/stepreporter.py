@@ -1,10 +1,12 @@
-from .step import steps
+from __future__ import annotations
+
+from .step import StepEvent, steps
 
 
 class StepReporter:
-    _started = False
+    _started: bool = False
 
-    def __init__(self):
+    def __init__(self) -> None:
         from warnings import warn
 
         warn(
@@ -14,7 +16,7 @@ class StepReporter:
         )
 
     @classmethod
-    def start(cls):
+    def start(cls) -> None:
         """starts the StepReporter"""
         from warnings import warn
 
@@ -31,14 +33,14 @@ class StepReporter:
         cls._started = True
 
     @classmethod
-    def stop(cls):
+    def stop(cls) -> None:
         """stops the StepReporter"""
         assert cls._started
         steps.unsubscribe(cls.notify)
         cls._started = False
 
     @staticmethod
-    def notify(event):
+    def notify(event: StepEvent) -> None:
         # ignore tagged events
         if event.step.tag:
             return

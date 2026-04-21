@@ -1,26 +1,40 @@
+from __future__ import annotations
+
 import abc
 import atexit
 import logging
 import sys
+from collections.abc import Iterable
 from time import monotonic, sleep
+from typing import TYPE_CHECKING, Any, overload
 
 import attr
 
 from .binding import BindingError, BindingState
 from .driver import Driver
-from .exceptions import NoSupplierFoundError, NoDriverFoundError, NoResourceFoundError, NoStrategyFoundError
+from .exceptions import NoDriverFoundError, NoResourceFoundError, NoStrategyFoundError, NoSupplierFoundError
+from .factory import target_factory
 from .resource import Resource
 from .strategy import Strategy
 from .util import Timeout
-from .factory import target_factory
+
+if TYPE_CHECKING:
+    from .environment import Environment
 
 
 @attr.s(eq=False)
 class Target:
-    name = attr.ib(validator=attr.validators.instance_of(str))
-    env = attr.ib(default=None)
+    name: str = attr.ib(validator=attr.validators.instance_of(str))
+    env: Environment | None = attr.ib(default=None)
 
-    def __attrs_post_init__(self):
+    log: logging.Logger
+    resources: list[Resource]
+    drivers: list[Driver]
+    last_update: float
+    _binding_map: dict[str, Any]
+    _lookup_table: dict[str, Any]
+
+    def __attrs_post_init__(self) -> None:
         self.log = logging.getLogger(f"target({self.name})")
         self.resources = []
         self.drivers = []
@@ -35,13 +49,13 @@ class Target:
         }
         atexit.register(self._atexit_cleanup)
 
-    def interact(self, msg):
+    def interact(self, msg: str) -> None:
         if self.env:
             self.env.interact(f"{self.name}: {msg}")
         else:
             input(msg)
 
-    def update_resources(self):
+    def update_resources(self) -> None:
         """
         Iterate over this target's resources, deactivate any active but
         unavailable resources and also deactivate any drivers using them.
@@ -63,7 +77,12 @@ class Target:
                 else:
                     self.log.debug("deactivating unavailable resource %s (unused)", resource.display_name)  # pylint: disable=line-too-long
 
-    def await_resources(self, resources, timeout=None, avail=True):
+    def await_resources(
+        self,
+        resources: Iterable[Resource],
+        timeout: float | Timeout | None = None,
+        avail: bool = True,
+    ) -> None:
         """
         Poll the given resources and wait until they are (un-)available.
 
@@ -105,7 +124,13 @@ class Target:
 
         self.update_resources()
 
-    def get_resource(self, cls, *, name=None, wait_avail=True):
+    def get_resource(
+        self,
+        cls: type[Resource] | str,
+        *,
+        name: str | None = None,
+        wait_avail: bool = True,
+    ) -> Resource:
         """
         Helper function to get a resource of the target.
         Returns the first valid resource found, otherwise a
@@ -141,7 +166,8 @@ class Target:
             name_msg = f" named '{name}'" if name else ""
             if other_names:
                 raise NoResourceFoundError(
-                    f"no {cls.__name__} resource{name_msg} found in {self}, matching resources with other names: {other_names}"  # pylint: disable=line-too-long
+                    f"no {cls.__name__} resource{name_msg} found in {self}, "
+                    f"matching resources with other names: {other_names}"
                 )
 
             raise NoResourceFoundError(
@@ -155,7 +181,15 @@ class Target:
             self.await_resources(found)
         return found[0]
 
-    def _get_driver(self, cls, *, name=None, resource=None, activate=True, active=False):
+    def _get_driver(
+        self,
+        cls: type[Driver] | str,
+        *,
+        name: str | None = None,
+        resource: Resource | None = None,
+        activate: bool = True,
+        active: bool = False,
+    ) -> Driver:
         assert not (activate is True and active is True)
 
         found = []
@@ -178,9 +212,14 @@ class Target:
             name_msg = f" named '{name}'" if name else ""
             if other_names:
                 raise NoDriverFoundError(
-                    "no {active}{cls} driver{name} found in {target}, matching resources with other names: {other_names}".format(  # pylint: disable=line-too-long
-                        active="active " if active else "", cls=cls.__name__, name=name_msg,
-                        target=self, other_names=other_names)
+                    "no {active}{cls} driver{name} found in {target}, "
+                    "matching resources with other names: {other_names}".format(
+                        active="active " if active else "",
+                        cls=cls.__name__,
+                        name=name_msg,
+                        target=self,
+                        other_names=other_names,
+                    )
                 )
 
             raise NoDriverFoundError(
@@ -209,7 +248,13 @@ class Target:
             self.activate(found[0])
         return found[0]
 
-    def get_active_driver(self, cls, *, name=None, resource=None):
+    def get_active_driver(
+        self,
+        cls: type[Driver] | str,
+        *,
+        name: str | None = None,
+        resource: Resource | None = None,
+    ) -> Driver:
         """
         Helper function to get the active driver of the target.
         Returns the active driver found, otherwise None.
@@ -221,7 +266,14 @@ class Target:
         """
         return self._get_driver(cls, name=name, resource=resource, activate=False, active=True)
 
-    def get_driver(self, cls, *, name=None, resource=None, activate=True):
+    def get_driver(
+        self,
+        cls: type[Driver] | str,
+        *,
+        name: str | None = None,
+        resource: Resource | None = None,
+        activate: bool = True,
+    ) -> Driver:
         """
         Helper function to get a driver of the target.
         Returns the first valid driver found, otherwise None.
@@ -234,7 +286,7 @@ class Target:
         """
         return self._get_driver(cls, name=name, resource=resource, activate=activate)
 
-    def get_strategy(self):
+    def get_strategy(self) -> Strategy:
         """
         Helper function to get the strategy of the target.
 
@@ -252,7 +304,13 @@ class Target:
             raise NoStrategyFoundError(f"multiple Strategies found in {self}")
         return found[0]
 
-    def __getitem__(self, key):
+    @overload
+    def __getitem__(self, key: type[Driver] | str) -> Driver: ...
+
+    @overload
+    def __getitem__(self, key: tuple[type[Driver] | str, str | None]) -> Driver: ...
+
+    def __getitem__(self, key: type[Driver] | str | tuple[type[Driver] | str, str | None]) -> Driver:
         """
         Syntactic sugar to access drivers by class (optionally filtered by
         name).
@@ -263,10 +321,10 @@ class Target:
         >>> target = Target('main')
         >>> console = FakeConsoleDriver(target, 'console')
         >>> target.activate(console)
-        >>> target[FakeConsoleDriver]
-        FakeConsoleDriver(target=Target(name='main', env=None), name='console', state=<BindingState.active: 2>, txdelay=0.0, txchunk=1)
-        >>> target[FakeConsoleDriver, 'console']
-        FakeConsoleDriver(target=Target(name='main', env=None), name='console', state=<BindingState.active: 2>, txdelay=0.0, txchunk=1)
+        >>> target[FakeConsoleDriver] is console
+        True
+        >>> target[FakeConsoleDriver, 'console'] is console
+        True
         """
         name = None
         if not isinstance(key, tuple):
@@ -282,13 +340,13 @@ class Target:
 
         return self.get_active_driver(cls, name=name)
 
-    def set_binding_map(self, mapping):
+    def set_binding_map(self, mapping: dict[str, Any]) -> None:
         """
         Configure the binding name mapping for the next driver only.
         """
         self._binding_map = mapping
 
-    def bind_resource(self, resource):
+    def bind_resource(self, resource: Resource) -> None:
         """
         Bind the resource to this target.
         """
@@ -310,7 +368,7 @@ class Target:
         resource.target = self
         resource.state = BindingState.bound
 
-    def bind_driver(self, client):
+    def bind_driver(self, client: Driver) -> None:
         """
         Bind the driver to all suppliers (resources and other drivers).
 
@@ -343,10 +401,9 @@ class Target:
                     f"supplier for {name} ({requirements}) of {client} in {self} requires an explicit name"  # pylint: disable=line-too-long
                 )
             # use sets even for a single requirement and make a local copy
-            if not isinstance(requirements, set):
-                requirements = {requirements}
-            else:
-                requirements = requirements.copy()
+            requirements = (
+                {requirements} if not isinstance(requirements, set) else requirements.copy()
+            )
             # None indicates that the binding is optional
             optional = None in requirements
             requirements.discard(None)
@@ -380,7 +437,8 @@ class Target:
                     raise err_cls(f"binding {client_name} failed: {err}") from err
                 else:
                     raise NoSupplierFoundError(
-                        f"binding {client_name} failed: no supplier matching {requirements} found in {self} (errors: {errors})"
+                        f"binding {client_name} failed: no supplier matching {requirements} "
+                        f"found in {self} (errors: {errors})"
                     )
             elif len(suppliers) > 1:
                 raise NoSupplierFoundError(f"conflicting suppliers matching {requirements} found in target {self}")  # pylint: disable=line-too-long
@@ -424,7 +482,7 @@ class Target:
             supplier.on_client_bound(client)
         client.state = BindingState.bound
 
-    def bind(self, bindable):
+    def bind(self, bindable: Resource | Driver) -> None:
         if isinstance(bindable, Resource):
             return self.bind_resource(bindable)
         if isinstance(bindable, Driver):
@@ -432,7 +490,7 @@ class Target:
 
         raise BindingError(f"object {bindable} is not bindable")
 
-    def activate(self, client, name=None):
+    def activate(self, client: Driver | str, name: str | None = None) -> None:
         """
         Activate the client by activating all bound suppliers. This may require
         deactivating other clients.
@@ -472,7 +530,11 @@ class Target:
         client.on_activate()
         client.state = BindingState.active
 
-    def deactivate(self, client, name=None):
+    def deactivate(
+        self,
+        client: Driver | Resource | str,
+        name: str | None = None,
+    ) -> list[Driver | Resource]:
         """
         Recursively deactivate the client's clients and itself.
 
@@ -507,12 +569,12 @@ class Target:
         client.state = BindingState.bound
         return deactivated
 
-    def deactivate_all_drivers(self):
+    def deactivate_all_drivers(self) -> None:
         """Deactivates all drivers in reversed order they were activated"""
         for drv in reversed(self.drivers):
             self.deactivate(drv)
 
-    def _atexit_cleanup(self):
+    def _atexit_cleanup(self) -> None:
         try:
             self.cleanup()
         except Exception as e:
@@ -522,7 +584,7 @@ class Target:
             import traceback
             traceback.print_exc(file=sys.stderr)
 
-    def export(self):
+    def export(self) -> dict[str, str]:
         """
         Export information from drivers.
 
@@ -558,14 +620,14 @@ class Target:
         return export_vars
 
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Clean up connected drivers and resources in reversed order"""
         self.deactivate_all_drivers()
         for res in reversed(self.resources):
             self.deactivate(res)
 
-    def __enter__(self):
+    def __enter__(self) -> Target:
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, *exc: object) -> None:
         self.cleanup()

@@ -21,8 +21,6 @@ NetworkPowerPort:
 
 from urllib.parse import urlparse
 
-from py_netgear_plus import NetgearSwitchConnector
-
 from ..exception import ExecutionError
 
 
@@ -66,6 +64,8 @@ def power_set(host: str, _port: int, index: int, value: bool) -> None:
 
     (hostname, password) = _get_hostname_and_password(host)
 
+    from py_netgear_plus import NetgearSwitchConnector
+
     sw = NetgearSwitchConnector(hostname, password)
     sw.autodetect_model()
     try:
@@ -98,6 +98,8 @@ def power_get(host: str, _port: int, index: int) -> bool:
     netgear_port_number = index + 1
 
     (hostname, password) = _get_hostname_and_password(host)
+
+    from py_netgear_plus import NetgearSwitchConnector
 
     sw = NetgearSwitchConnector(hostname, password)
     sw.autodetect_model()

@@ -135,7 +135,7 @@ testpaths = [
     "tests",
     "labgrid",
 ]
-addopts = "-p no:labgrid"
+addopts = []
 
 [tool.pylint.imports]
 ignored-modules = ["gi"]

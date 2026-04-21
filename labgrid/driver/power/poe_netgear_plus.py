@@ -64,7 +64,9 @@ def power_set(host: str, _port: int, index: int, value: bool) -> None:
 
     (hostname, password) = _get_hostname_and_password(host)
 
-    from py_netgear_plus import NetgearSwitchConnector
+    from py_netgear_plus import (  # pylint: disable=import-error,import-outside-toplevel
+        NetgearSwitchConnector,
+    )
 
     sw = NetgearSwitchConnector(hostname, password)
     sw.autodetect_model()
@@ -99,7 +101,9 @@ def power_get(host: str, _port: int, index: int) -> bool:
 
     (hostname, password) = _get_hostname_and_password(host)
 
-    from py_netgear_plus import NetgearSwitchConnector
+    from py_netgear_plus import (  # pylint: disable=import-error,import-outside-toplevel
+        NetgearSwitchConnector,
+    )
 
     sw = NetgearSwitchConnector(hostname, password)
     sw.autodetect_model()

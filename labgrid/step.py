@@ -75,14 +75,14 @@ class StepEvent:
 
     def __init__(
         self,
-        step: Step,
+        current_step: Step,
         data: dict[str, Any],
         *,
         resource: object | None = None,
         stream: bool = False,
-    ) -> None:  # pylint: disable=redefined-outer-name
+    ) -> None:
         self.ts = monotonic()  # used to keep track of the events age
-        self.step = step
+        self.step = current_step
         self.data = data
         self.resource = resource
         self.stream = stream

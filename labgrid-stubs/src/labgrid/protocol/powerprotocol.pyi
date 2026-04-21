@@ -1,0 +1,9 @@
+import abc
+
+class PowerProtocol(abc.ABC):
+    @abc.abstractmethod
+    def on(self): ...
+    @abc.abstractmethod
+    def off(self): ...
+    @abc.abstractmethod
+    def cycle(self): ...

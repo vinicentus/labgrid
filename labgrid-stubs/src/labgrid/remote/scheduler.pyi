@@ -1,0 +1,9 @@
+from _typeshed import Incomplete
+
+class TagSet:
+    name: Incomplete
+    tags: Incomplete
+
+def schedule_step(places, filters): ...
+def schedule_overlaps(places, filters): ...
+def schedule(places, filters): ...

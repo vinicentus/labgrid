@@ -1,0 +1,9 @@
+import abc
+
+class InfoProtocol(abc.ABC):
+    @abc.abstractmethod
+    def get_ip(self, interface: str = "eth0"): ...
+    @abc.abstractmethod
+    def get_hostname(self): ...
+    @abc.abstractmethod
+    def get_service_status(self, service): ...

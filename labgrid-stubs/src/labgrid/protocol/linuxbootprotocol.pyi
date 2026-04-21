@@ -1,0 +1,9 @@
+import abc
+
+class LinuxBootProtocol(abc.ABC):
+    @abc.abstractmethod
+    def boot(self, name: str): ...
+    @abc.abstractmethod
+    def await_boot(self): ...
+    @abc.abstractmethod
+    def reset(self): ...
